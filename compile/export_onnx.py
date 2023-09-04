@@ -98,12 +98,10 @@ class LmHead(torch.nn.Module):
 
 def convert_block(layer_id):
     # input
-    # MAX_LEN + 1 for model combine
-    hidden_states = torch.randn((MAX_LEN, 1, hidden_size))
-    position_ids = torch.tensor([range(MAX_LEN)], dtype=torch.long).transpose(0,1)
+    hidden_states = torch.randn((1, MAX_LEN, hidden_size))
+    position_ids = torch.tensor([range(MAX_LEN)], dtype=torch.long)
     attention_mask = -1000 * torch.ones((1, 1, MAX_LEN, MAX_LEN), dtype=torch.float32).triu(diagonal=1)
     model = Block(layer_id)
-    # hiddeng_states = model(input_ids, position_ids)
 
     torch.onnx.export(
         model, (hidden_states, position_ids, attention_mask),
