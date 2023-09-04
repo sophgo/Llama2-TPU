@@ -225,9 +225,9 @@ if not os.path.exists(folder):
     os.makedirs(folder)
 
 # export models
-for i in range(1):
+for i in range(num_layers):
     print("convert_block_{}".format(i))
-    # convert_block_cache(i)
+    convert_block_cache(i)
     convert_block(i)
-# convert_embedding()
-# convert_lm_head()
+convert_embedding()
+convert_lm_head()
