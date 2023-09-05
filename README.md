@@ -28,7 +28,7 @@ apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
 2. 下载`Llama2-7B`，比较大，会花较长时间
 
-下载路径为: http://disk-sophgo-vip.quickconnect.to/sharing/RAcn5E1zU
+下载路径为: http://disk-sophgo-vip.quickconnect.to/sharing/RAcn5E1zU 密码：123456
 
 3. 修改源代码，修改的目的是为了保证model\_tool --combine的时候block和block\_cache权重能对齐
 
