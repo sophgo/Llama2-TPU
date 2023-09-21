@@ -48,6 +48,7 @@ vi /usr/local/lib/python3.10/dist-packages/transformers/models/llama/modeling_ll
 if past_key_value is not None:
   kv_seq_len += past_key_value[0].shape[-2]
 cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
+query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
 ```
 
 修改后：
@@ -59,6 +60,7 @@ if past_key_value is not None:
   cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len-1)
 else:
   cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
+query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
 ```
 
 3. 下载`TPU-MLIR`代码并编译，(也可以直接下载编译好的release包解压)
