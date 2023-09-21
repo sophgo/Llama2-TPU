@@ -45,12 +45,16 @@ vi /usr/local/lib/python3.10/dist-packages/transformers/models/llama/modeling_ll
 修改316行左右的代码，修改前为
 
 ```python
+if past_key_value is not None:
+  kv_seq_len += past_key_value[0].shape[-2]
 cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
 ```
 
 修改后：
 
 ```python
+if past_key_value is not None:
+  kv_seq_len += past_key_value[0].shape[-2]
 if past_key_value is not None:
   cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len-1)
 else:
