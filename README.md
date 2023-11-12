@@ -22,8 +22,8 @@
 ## 准备
 
 * 模型准备：下载好llama2-7b或者llama2-13b的torch版本模型，链接为
-* AI编译器准备：下载好tpu-mlir，链接为，详细请见后文
-* docker准备：下载好
+* AI编译器准备：下载好tpu-mlir，链接为https://pan.baidu.com/s/1rXtdnTQf0EF65cvGHNjWXw?pwd=g1jt 提取码：g1jt，在百度网盘Llama2-TPU/路径下
+* docker准备：下载好sophgo/tpuc_dev:latest的docker
 
 ## 注意点
 * 模型编译必须要在docker内完成，无法在docker外操作
@@ -43,7 +43,7 @@ docker run --privileged --name myname1234 -v $PWD:/workspace -it sophgo/tpuc_dev
 ### 步骤二：下载TPU-MLIR代码并编译，这里直接下载Release版本的TPU-MLIR
 
 ``` shell
-tar -zxvf tpu.mlir!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+tar -zxvf tpu-mlir_v1.1.0_RC1.77-g339a77f9-20231110.tar.gz
 cd tpu-mlir
 source ./envsetup.sh
 ./build.sh
