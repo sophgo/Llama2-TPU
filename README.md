@@ -6,11 +6,32 @@
 
 下文中默认是PCIE环境；如果是SoC环境，按提示操作即可。
 
+# 目录说明
+* bmodel：存放编译好的bmodel以及可以在PCIE与SOC上直接运行的llama2_pcie llama2_soc可执行文件
+  * llama2_soc：已经编译好的，可以直接在SOC上运行的可执行文件
+  * llama2_pcie：已经编译好的，可以直接在PCIE上运行的可执行文件
+* compile：导出
+  * export_onnx_fast.py：将llama2的.bin文件导出为onnx的代码
+  * modeling_llama.py：由于修改了transformers的源码，需要将/usr/local/lib/python3.10/dist-packages/transformers/models/llama/modeling_llama.py替换为该文件（不一定是这个路径，可以用pip show trannsformers查看）
+  * compile.sh：将onnx文件编译为
 
-## 开发环境
+----------------------------
 
+# 【阶段一】模型编译（该阶段可跳过）
 
-1. 下载docker，启动容器，如下：
+## 准备
+
+* 模型准备：下载好llama2-7b或者llama2-13b的torch版本模型，链接为
+* AI编译器准备：下载好tpu-mlir，链接为，详细请见后文
+* docker准备：下载好
+
+## 注意点
+* 模型编译必须要在docker内完成，无法在docker外操作
+* `不太建议`进行阶段一模型编译，因为太耗时间与存储空间，建议直接跳过这一步，下载编译好的模型（编译好的模型在后文中有链接），除非有硬性的编译需求
+
+### 步骤一：下载docker
+
+下载docker，启动容器，如下：
 
 ``` shell
 docker pull sophgo/tpuc_dev:latest
@@ -18,141 +39,132 @@ docker pull sophgo/tpuc_dev:latest
 # myname1234 is just an example, you can set your own name
 docker run --privileged --name myname1234 -v $PWD:/workspace -it sophgo/tpuc_dev:latest
 ```
-后文假定环境都在docker的`/workspace`目录。
 
-如果是要在SoC环境运行，则需要安装如下库：
-
-``` shell
-apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-```
-
-2. 下载`Llama2-7B`，比较大，会花较长时间
-
-下载路径为: http://disk-sophgo-vip.quickconnect.to/sharing/RAcn5E1zU 密码：123456
-
-3. 修改源代码，修改的目的是为了保证model\_tool --combine的时候block和block\_cache权重能对齐
-
-```shell
-pip show transformers
-```
-
-找到transformers库的位置
-
-```shell
-vi /usr/local/lib/python3.10/dist-packages/transformers/models/llama/modeling_llama.py
-```
-
-修改316行左右的代码，修改前为
-
-```python
-if past_key_value is not None:
-  kv_seq_len += past_key_value[0].shape[-2]
-cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
-query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
-```
-
-修改后：
-
-```python
-if past_key_value is not None:
-  kv_seq_len += past_key_value[0].shape[-2]
-if past_key_value is not None:
-  cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len-1)
-else:
-  cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
-query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
-```
-
-3. 下载`TPU-MLIR`代码并编译，(也可以直接下载编译好的release包解压)
+### 步骤二：下载TPU-MLIR代码并编译，这里直接下载Release版本的TPU-MLIR
 
 ``` shell
-git clone git@github.com:sophgo/tpu-mlir.git
+tar -zxvf tpu.mlir!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 cd tpu-mlir
 source ./envsetup.sh
 ./build.sh
 ```
 
-4. 下载[sentencepiece](https://github.com/google/sentencepiece)，并编译得到`sentencepiece.a`
-
-```shell
-git clone git@github.com:google/sentencepiece.git
-cd sentencepiece
-mkdir build
-cd build
-cmake ..
-make -j
-```
-
-如果要编译SoC环境，则需要在`CMakeLists.txt`加入如下代码：
-
-```cmake
-set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
-set(CMAKE_ASM_COMPILER aarch64-linux-gnu-gcc)
-set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
-```
-
-5. 下载libsophon库并安装
-
-如果是跑分布式模型，libsophon请联系yi.chu@sophgo.com获取
-
-在算能官网<https://developer.sophgo.com/site/index/material/all/all.html>可以找到SDK最新版本，如下：
-
-```shell
-wget https://sophon-file.sophon.cn/sophon-prod-s3/drive/23/06/15/16/Release_230501-public.zip
-```
-解压sdk后安装libsophon，如下：
-
-```shell
-apt install sophon-libsophon-dev_0.4.8_amd64.deb
-```
-
-注意如果是SoC环境则安装arm64版本`sophon-libsophon-dev_0.4.8_arm64.deb`
-
-6. 下载本项目`Llama2-TPU`，如下：
+### 步骤三：下载transfomers、sentencepiece、Llama2-TPU以及百度网盘里的.bin模型，并替换transformers里面的modeling_llama.py
 
 ``` shell
-git clone git@github.com:sophgo/Llama2-TPU.git
-```
-
-## 编译模型(分布式)
-
-1. 导出所有onnx模型，如果过程中提示缺少某些组件，直接`pip install 组件`即可
-
-``` shell
+pip install sentencepiece transformers==4.31.0
+git clone https://github.com/sophgo/Llama2-TPU.git
 cd Llama2-TPU/compile
-python3 export_onnx.py
+unzip llama-2-7b-chat-hf.zip
+pip show transformers
+cp modeling_llama.py /usr/local/lib/python3.10/dist-packages/transformers/models/llama/modeling_llama.py
 ```
-此时有大量onnx模型被导出到tmp目录
 
-2. 对onnx模型进行编译，生成bmodel，这个过程会花一些时间，最终生成`llama2-7b.bmodel`文件
+* PS：不一定是/usr/local/lib/python3.10/dist-packages/transformers/models/llama/modeling_llama.py这个路径，建议替换前先pip show transformers查看一下
+
+### 步骤四：生成onnx文件
+
+``` shell
+python export_onnx_fast.py
+```
+
+* PS1：如果想要生成7b的onnx模型，需要将export_onnx_fast.py的24行改为"llama-2-7b-chat-hf"
+* PS2：如果你想要debug，而不是一下子生成完成全部的onnx模型，可以将234行的num_layers改成1
+
+### 步骤五：生成bmodel文件
+
+生成单芯模型
+
+``` shell
+./compile.sh --mode int8
+```
+
+生成双芯模型
+
+``` shell
+./compile.sh --mode int8 --num_device 2
+```
+
+* PS1：最终会在Llama2-TPU/compile路径下生成combine后的文件，名为llama2-13b_int8.bmodel
+* PS2：生成bmodel耗时大概3小时以上，建议64G内存以及200G以上硬盘空间，不然很可能OOM或者no space left
+
+----------------------------
+
+# 阶段二：可执行文件生成（可以跳过）
+
+## 准备
+* bmodel模型准备：经过阶段一后编译好的bmodel文件，百度网盘链接 https://pan.baidu.com/s/1rXtdnTQf0EF65cvGHNjWXw?pwd=g1jt 提取码：g1jt，在百度网盘Llama2-TPU/bmodel路径下
+* SOC链接库准备：如果是需要编译出针对SOC的可执行文件，则需要下载soc0701链接库，百度网盘链接 https://pan.baidu.com/s/1rXtdnTQf0EF65cvGHNjWXw?pwd=g1jt，在Llama2-TPU/soc07101.tar.gz
+* PCIE链接库准备：如果是需要编译出针对PCIE的可执行文件，则需要下载libsophon链接库，百度网盘链接 https://pan.baidu.com/s/1rXtdnTQf0EF65cvGHNjWXw?pwd=g1jt，在Llama2-TPU/libsophon.zip
+
+## 注意点
+* `该步骤可以跳过`，可以直接使用Llama2-TPU/bmodel下名为llama2_soc和llama2_pcie的可执行程序
+* 可执行文件根据运行环境的不同分为PCIE和SOC模式，SOC模式的可执行文件和PCIE的可执行文件是不同的
+* 建议编译PCIE的可执行文件的时候，在docker内进行。在编译SOC小盒子上的可执行文件时，在SOC小盒子上进行，而不是交叉编译。
+
+## PCIE
+下文将说明在docker中编译用于PCIE的llama2的可执行文件
+
+### 第一步：开发环境准备
+
+1. 启动容器，如下：
+
+``` shell
+docker pull sophgo/tpuc_dev:latest
+
+# myname1234 is just an example, you can set your own name
+docker run --privileged --name myname1234 -v $PWD:/workspace -it sophgo/tpuc_dev:latest
+```
+
+### 第二步：下载Llama2-TPU与libsophon.zip，并编译可执行文件
+
+``` shell
+unzip libsophon.zip
+git clone https://github.com/sophgo/Llama2-TPU.git
+cd Llama2-TPU/pcie/demo
+mkdir build && cd build
+cmake .. && make -j
+```
+
+* PS1：需要提前下载好libsophon.zip并解压，同时需要将Llama2-TPU/pcie/demo/CMakeLists.txt第三行改为解压后的路径，否则`编译会报错`
+
+## SOC
+下文将说明如何编译用于SOC的llama2的可执行文件，这里仅在SOC内部编译，不涉及交叉编译
+
+### 第一步：下载Llama2-TPU与soc0701.tar.gz，并编译可执行文件
+
+``` shell
+tar -zxvf soc0701.tar.gz
+git clone https://github.com/sophgo/Llama2-TPU.git
+cd Llama2-TPU/soc/demo
+mkdir build && cd build
+cmake .. && make -j
+```
+
+* PS1：需要提前下载好soc0701.tar.gz并解压，同时需要将Llama2-TPU/soc/demo/CMakeLists.txt第三行改为解压后的路径，否则`编译会报错`
+* PS2：如果是在CPU上交叉编译SOC可执行文件，还需要安装
+``` shell
+apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+```
+
+# 阶段三：正式模型推理
+
+## 准备
+* bmodel模型准备：经过阶段一后编译好的bmodel文件，百度网盘链接 https://pan.baidu.com/s/1rXtdnTQf0EF65cvGHNjWXw?pwd=g1jt 提取码：g1jt，在百度网盘Llama2-TPU/bmodel路径下
+* 可执行文件准备：Llama2-TPU/bmodel下有名为llama2_soc和llama2_pcie的可执行程序
+
+### PCIE上执行
 
 ```shell
-./compile.sh --num_device 2
+cd Llama2-TPU/bmodel
+./llama2_pcie --dev_id 27,28 --model llama2-13b_int8_2dev.bmodel
 ```
 
-## 编译程序(C++版本)
+### SOC上执行
 
 ```shell
-cd Llama2-TPU/demo
-mkdir build
-cd build
-cmake ..
-make -j
+cd Llama2-TPU/bmodel
+./llama2_soc --dev_id 0 --model llama2-7b_int4.bmodel
 ```
 
-如果是SoC环境，则将CMakeLists.txt中加入，并将SoC版本的`libsentencepiece.a`替换过来：
-
-```cmake
-set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
-set(CMAKE_ASM_COMPILER aarch64-linux-gnu-gcc)
-set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
-```
-
-编译生成llama2可执行程序，将`llama2`、`llama2-7b.bmodel`和`tokenizer.model`拷贝到运行环境就可以执行了。
-(`tokenizer.model`来自`https://huggingface.co/meta-llama/Llama-2-7b-chat-hf`)
-
-运行指令
-```shell
-./llama2 --dev_id 0,1
-```
-
+* PS1：需要将tokenizer.model也置于Llama2-TPU/bmodel路径下

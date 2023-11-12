@@ -21,7 +21,7 @@ import pdb
 import numpy as np
 
 folder = "./tmp"
-model_path = "llama-2-7b-chat-hf"
+model_path = "llama-2-13b-chat-hf"
 
 origin_model = LlamaForCausalLM.from_pretrained(model_path)
 origin_model.eval()
@@ -81,7 +81,7 @@ class BlockCache(torch.nn.Module):
                                             past_key_value=(past_k, past_v),
                                             use_cache=True)
         past_k, past_v = past_kv
-        return hidden_states, past_k[:,:,1:], past_v[:,:,1:]
+        return hidden_states, past_k, past_v
 
 
 class LmHead(torch.nn.Module):
@@ -98,10 +98,12 @@ class LmHead(torch.nn.Module):
 
 def convert_block(layer_id):
     # input
+    # MAX_LEN + 1 for model combine
     hidden_states = torch.randn((1, MAX_LEN, hidden_size))
     position_ids = torch.tensor([range(MAX_LEN)], dtype=torch.long)
     attention_mask = -1000 * torch.ones((1, 1, MAX_LEN, MAX_LEN), dtype=torch.float32).triu(diagonal=1)
     model = Block(layer_id)
+    # hiddeng_states = model(input_ids, position_ids)
 
     torch.onnx.export(
         model, (hidden_states, position_ids, attention_mask),
@@ -118,8 +120,8 @@ def convert_block_cache(layer_id):
     hidden_states = torch.randn((1, 1, hidden_size))
     position_ids = torch.tensor([range(1)], dtype=torch.long)
     attention_mask = -1000 * torch.ones((1, 1, 1, MAX_LEN + 1), dtype=torch.float32).triu(diagonal=0)
-    past_k = torch.randn((1, num_attention_heads, MAX_LEN, head_dim))
-    past_v = torch.randn((1, num_attention_heads, MAX_LEN, head_dim))
+    past_k = torch.randn((1, MAX_LEN, num_attention_heads, head_dim))
+    past_v = torch.randn((1, MAX_LEN, num_attention_heads, head_dim))
     model = BlockCache(layer_id)
     # hiddeng_states = model(input_ids, position_ids)
 
@@ -182,15 +184,15 @@ def test_net_with_mask():
     attention_mask = attention_mask.view(1, 1, MAX_LEN, MAX_LEN)
     k_cache = []
     v_cache = []
-    for i in range(num_layers):
+    for i in range(5):
         out, k, v = blocks[i](out, position_ids, attention_mask)
-        k[:,:,MAX_LEN - token_len:] = k[:,:,:token_len]
-        v[:,:,MAX_LEN - token_len:] = v[:,:,:token_len]
-        k[:,:,:MAX_LEN - token_len] = 0
-        v[:,:,:MAX_LEN - token_len] = 0
+        k[:,MAX_LEN - token_len:] = k[:,:token_len]
+        v[:,MAX_LEN - token_len:] = v[:,:token_len]
+        k[:,:MAX_LEN - token_len] = 0
+        v[:,:MAX_LEN - token_len] = 0
         k_cache.append(k)
         v_cache.append(v)
-    out = out[:,token_len - 1:token_len].view(1, 4096)
+    out = out[:,token_len - 1:token_len].view(1, hidden_size)
     lm = LmHead()
     token = lm(out).view(1)
     out_ids = [int(token)]
@@ -199,16 +201,22 @@ def test_net_with_mask():
     while token > 2 and token_len < 64:
         token_len += 1
         input_ids = torch.tensor([token])
-        out = embed(input_ids).view(1, 1, 4096)
+        out = embed(input_ids).view(1, 1, hidden_size)
         position_ids = torch.tensor([[token_len - 1]])
         attention_mask = -1000 * torch.ones((1, 1, 1, MAX_LEN + 1))
         attention_mask[:, :, :, MAX_LEN + 1 - token_len:] = 0
         for i in range(num_layers):
-            out, k_cache[i], v_cache[i] = block_kvs[i](out, position_ids,
-                                                       attention_mask,
-                                                       k_cache[i], v_cache[i])
-            k_cache[i][:,:,:MAX_LEN - token_len] = 0
-            v_cache[i][:,:,:MAX_LEN - token_len] = 0
+            out, present_k_cache, present_v_cache = block_kvs[i](out, position_ids,
+                                                    attention_mask,
+                                                    k_cache[i], v_cache[i])
+            new_k = torch.zeros(k_cache[i].shape)
+            new_v = torch.zeros(v_cache[i].shape)
+            new_k[:,MAX_LEN - token_len:MAX_LEN - 1] = k_cache[i][:,MAX_LEN - token_len + 1:]
+            new_v[:,MAX_LEN - token_len:MAX_LEN - 1] = v_cache[i][:,MAX_LEN - token_len + 1:]
+            new_k[:,MAX_LEN - 1:] = present_k_cache
+            new_v[:,MAX_LEN - 1:] = present_v_cache
+            k_cache[i] = new_k
+            v_cache[i] = new_v
         token = lm(out).view(1)
         out_ids.append(int(token))
         word = tokenizer._convert_id_to_token(int(token[0]))
@@ -216,7 +224,7 @@ def test_net_with_mask():
     print("\noutput_ids:{}".format(out_ids))
 
 
-# test_net_with_mask()
+#test_net_with_mask()
 
 # create folder to store onnx
 if not os.path.exists(folder):
