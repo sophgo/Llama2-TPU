@@ -152,10 +152,13 @@ apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 ## 准备
 * bmodel模型准备：经过阶段一后编译好的bmodel文件，百度网盘链接 https://pan.baidu.com/s/1rXtdnTQf0EF65cvGHNjWXw?pwd=g1jt 提取码：g1jt，在百度网盘Llama2-TPU/bmodel路径下
 * 可执行文件准备：Llama2-TPU/bmodel下有名为llama2_soc和llama2_pcie的可执行程序
+* sophon-libsophon
 
 ### PCIE上执行
 
 ```shell
+apt install ./sophon-libsophon_0.4.9_amd64.deb ./sophon-libsophon-dev_0.4.9_amd64.deb
+source /etc/profile.d/libsophon-bin-path.sh
 cd Llama2-TPU/bmodel
 ./llama2_pcie --dev_id 27,28 --model llama2-13b_int8_2dev.bmodel
 ```
