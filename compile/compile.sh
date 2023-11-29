@@ -2,10 +2,13 @@
 set -ex
 models=
 mode="f16"
+folder="tmp"
 num_device=1
 mode_args=""
 device_args=""
-out_model=llama2-7b.bmodel
+quantize_args="--quantize F16"
+name=""
+out_model=$name.bmodel
 
 while [[ $# -gt 0 ]]; do
     key="$1"
@@ -19,6 +22,10 @@ while [[ $# -gt 0 ]]; do
             num_device="$2"
             shift 2
             ;;
+        --name)
+            name="$2"
+            shift 2
+            ;;
         *)
             echo "Invalid option: $key" >&2
             exit 1
@@ -30,13 +37,21 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [ x$mode == x"int8" ] || [ x$mode == x"int4" ]; then
+    if [ x$mode == x"int8" ]; then
+        quantize_args="--quantize W8F16"
+    else
+        quantize_args="--quantize W4F16"
+    fi
+    out_model=$name'_'$mode'.bmodel'
+fi
 
 if [ x$num_device != x1 ]; then
     device_args="--num_device $num_device"
-    out_model='llama2-7b_'$mode'_'$num_device'dev.bmodel'
+    out_model=$name'_'$mode'_'$num_device'dev.bmodel'
 fi
 
-outdir=tmp/embedding
+outdir=${folder}/embedding
 mkdir -p $outdir
 pushd $outdir
 
@@ -75,7 +90,7 @@ popd
 
 echo $models
 
-outdir=tmp/$mode"_"$num_device"dev"/lm_head
+outdir=${folder}/$mode"_"$num_device"dev"/lm_head
 mkdir -p $outdir
 pushd $outdir
 
@@ -99,7 +114,7 @@ popd
 
 echo $models
 
-outdir=tmp/$mode"_"$num_device"dev"/block
+outdir=${folder}/$mode"_"$num_device"dev"/block
 mkdir -p $outdir
 
 pushd $outdir
@@ -115,26 +130,33 @@ model_transform.py \
 
 model_deploy.py \
     --mlir block_$i.mlir \
-    --quantize F16 \
+    $quantize_args \
     --chip bm1684x \
+    --quant_output \
+    --quant_output_list 2,3 \
     $device_args \
+    --debug \
     --model block_$i.bmodel
 
 model_transform.py \
     --model_name block_cache_$i \
-    --model_def ../../block_cache_$i.onnx \
+    --model_def ../../block_cache_${i}.onnx \
     --mlir block_cache_$i.mlir
 
 model_deploy.py \
     --mlir block_cache_$i.mlir \
-    --quantize F16 \
+    $quantize_args \
     --chip bm1684x \
+    --quant_input \
+    --quant_output \
+    --quant_input_list 4,5 \
+    --quant_output_list 2,3 \
     $device_args \
     --model block_cache_$i.bmodel
 
 rm *.npz
-rm ../../block_$i.onnx
-rm ../../block_cache_$i.onnx
+# rm ../../block_$i.onnx
+# rm ../../block_cache_$i.onnx
 
 models=${models}${outdir}'/block_'$i'.bmodel '$outdir'/block_cache_'$i'.bmodel '
 
