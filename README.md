@@ -43,7 +43,7 @@ docker run --privileged --name myname1234 -v $PWD:/workspace -it sophgo/tpuc_dev
 ### 步骤二：下载TPU-MLIR代码并编译，这里直接下载Release版本的TPU-MLIR
 
 ``` shell
-tar -zxvf tpu-mlir_v1.1.0_RC1.77-g339a77f9-20231110.tar.gz
+tar -zxvf tpu-mlir_v1.1.0_RC1.137-g90d4b327-20231126.tar.gz
 cd tpu-mlir
 source ./envsetup.sh
 ./build.sh
@@ -76,17 +76,18 @@ python export_onnx_fast.py
 生成单芯模型
 
 ``` shell
-./compile.sh --mode int8
+./compile.sh --mode int8 --name llama2-7b
 ```
 
 生成双芯模型
 
 ``` shell
-./compile.sh --mode int8 --num_device 2
+./compile.sh --mode int8 --num_device 2 --name llama2-7b
 ```
 
 * PS1：最终会在Llama2-TPU/compile路径下生成combine后的文件，名为llama2-13b_int8.bmodel
 * PS2：生成bmodel耗时大概3小时以上，建议64G内存以及200G以上硬盘空间，不然很可能OOM或者no space left
+* PS3：如果想要编译llama2-7b，则--name必须为llama2-7b，想要编译llama2-13b，则必须--name为llama2-13b
 
 ----------------------------
 
@@ -152,7 +153,7 @@ apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 ## 准备
 * bmodel模型准备：经过阶段一后编译好的bmodel文件，百度网盘链接 https://pan.baidu.com/s/1rXtdnTQf0EF65cvGHNjWXw?pwd=g1jt 提取码：g1jt，在百度网盘Llama2-TPU/bmodel路径下
 * 可执行文件准备：Llama2-TPU/bmodel下有名为llama2_soc和llama2_pcie的可执行程序
-* sophon-libsophon
+* sophon-libsophon：PCIE请下载sophon-libsophon_0.4.9_amd64.deb与sophon-libsophon-dev_0.4.9_amd64.deb
 
 ### PCIE上执行
 

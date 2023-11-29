@@ -8,6 +8,7 @@ mode_args=""
 device_args=""
 quantize_args="--quantize F16"
 name=""
+num_layers=
 out_model=$name.bmodel
 
 while [[ $# -gt 0 ]]; do
@@ -44,6 +45,14 @@ if [ x$mode == x"int8" ] || [ x$mode == x"int4" ]; then
         quantize_args="--quantize W4F16"
     fi
     out_model=$name'_'$mode'.bmodel'
+fi
+
+if [ x$name == x"llama2-7b" ] || [ x$name == x"llama2-13b" ]; then
+    if [ x$mode == x"llama2-7b" ]; then
+        num_layers=31
+    else
+        num_layers=39
+    fi
 fi
 
 if [ x$num_device != x1 ]; then
@@ -120,7 +129,7 @@ mkdir -p $outdir
 pushd $outdir
 mkdir -p $outdir
 
-for i in {0..31}
+for ((i=0; i<=$num_layers; i++))
 do
 
 model_transform.py \
