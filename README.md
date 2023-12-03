@@ -188,6 +188,7 @@ cd pcie/web_demo
 python web_demo.py
 ```
 
+* PS0：`gradio必须装3.50.0`
 * PS1：请根据实际路径调整web_demo/chat.py的16行到18行中的device_id，bmodel_path，token_path，默认使用第一颗芯片
 * PS2：请根据实际需要调整web_demo/chat.py的78行到82行中的prompt，默认是不用prompt
 * PS3：请根据实际路径调整web_demo/CMakeLists.txt中的set(LIBSOPHON /workspace/soc0701)
