@@ -172,3 +172,23 @@ cd Llama2-TPU/bmodel
 ```
 
 * PS1：需要将tokenizer.model也置于Llama2-TPU/bmodel路径下
+
+# 其他：使用gradio跑前端页面
+
+## 准备
+* 准备一些pip库
+```shell
+pip install gradio==3.50.0
+pip install mdtex2html
+```
+
+## 执行
+```shell
+cd pcie/web_demo
+python web_demo.py
+```
+
+PS1：请根据实际路径调整web_demo/chat.py的16行到18行中的device_id，bmodel_path，token_path，默认使用第一颗芯片
+PS2：请根据实际需要调整web_demo/chat.py的78行到82行中的prompt，默认是不用prompt
+PS3：请根据实际路径调整web_demo/CMakeLists.txt中的set(LIBSOPHON /workspace/soc0701)
+PS4：请根据实际block数目调整web_demo/chat.cpp中的NUM_LAYERS，默认是32
