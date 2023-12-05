@@ -18,7 +18,7 @@
 #include "bmruntime_interface.h"
 #include <getopt.h>
 
-static const int NUM_LAYERS = 40;
+static const int NUM_LAYERS = 32;
 static const int MAX_LEN = 512;
 static const float ATTENTION_MASK = -1000.;
 
