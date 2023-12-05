@@ -64,7 +64,7 @@ outdir=${folder}/embedding
 mkdir -p $outdir
 pushd $outdir
 
-seqlen=4096
+seqlen=512
 model_transform.py \
     --model_name embedding \
     --model_def ../embedding.onnx \
