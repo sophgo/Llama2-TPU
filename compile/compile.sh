@@ -48,7 +48,7 @@ if [ x$mode == x"int8" ] || [ x$mode == x"int4" ]; then
 fi
 
 if [ x$name == x"llama2-7b" ] || [ x$name == x"llama2-13b" ]; then
-    if [ x$mode == x"llama2-7b" ]; then
+    if [ x$name == x"llama2-7b" ]; then
         num_layers=31
     else
         num_layers=39
@@ -64,7 +64,7 @@ outdir=${folder}/embedding
 mkdir -p $outdir
 pushd $outdir
 
-seqlen=512
+seqlen=4096
 model_transform.py \
     --model_name embedding \
     --model_def ../embedding.onnx \
