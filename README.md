@@ -13,7 +13,7 @@
 * compile：导出
   * export_onnx_fast.py：将llama2的.bin文件导出为onnx的代码
   * modeling_llama.py：由于修改了transformers的源码，需要将/usr/local/lib/python3.10/dist-packages/transformers/models/llama/modeling_llama.py替换为该文件（不一定是这个路径，可以用pip show trannsformers查看）
-  * compile.sh：将onnx文件编译为
+  * compile.sh：将onnx文件编译为bmodel
 
 ----------------------------
 
@@ -46,7 +46,6 @@ docker run --privileged --name myname1234 -v $PWD:/workspace -it sophgo/tpuc_dev
 tar -zxvf tpu-mlir_v1.1.0_RC1.137-g90d4b327-20231126.tar.gz
 cd tpu-mlir
 source ./envsetup.sh
-./build.sh
 ```
 
 ### 步骤三：下载transfomers、sentencepiece、Llama2-TPU以及百度网盘里的.bin模型，并替换transformers里面的modeling_llama.py

@@ -6,6 +6,7 @@ folder="tmp"
 num_device=1
 mode_args=""
 device_args=""
+q_group_size_args=""
 quantize_args="--quantize F16"
 name=""
 num_layers=
@@ -43,6 +44,7 @@ if [ x$mode == x"int8" ] || [ x$mode == x"int4" ]; then
         quantize_args="--quantize W8F16"
     else
         quantize_args="--quantize W4F16"
+        q_group_size_args="--q_group_size 64"
     fi
     out_model=$name'_'$mode'.bmodel'
 fi
@@ -140,11 +142,11 @@ model_transform.py \
 model_deploy.py \
     --mlir block_$i.mlir \
     $quantize_args \
+    --q_group_size_args \
     --chip bm1684x \
     --quant_output \
     --quant_output_list 2,3 \
     $device_args \
-    --debug \
     --model block_$i.bmodel
 
 model_transform.py \
@@ -156,6 +158,7 @@ model_deploy.py \
     --mlir block_cache_$i.mlir \
     $quantize_args \
     --chip bm1684x \
+    --q_group_size_args \
     --quant_input \
     --quant_output \
     --quant_input_list 4,5 \
