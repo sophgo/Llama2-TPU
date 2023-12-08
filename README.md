@@ -196,7 +196,7 @@ python web_demo.py
 
 # 常见问题
 
-![](./assets/sophgo_chip.png)
+![](./assets/issue_1.jpg)
 * 使用Github上面的tpu-mlir来编译
-* 使用https://github.com/sophgo/tpu-mlir上面的编译而不使用云盘里面的tpu-mlir_v1.1.0_RC1.137-g90d4b327-20231126.tar.gz编译
+* 使用 https://github.com/sophgo/tpu-mlir 上面的编译而不使用云盘里面的tpu-mlir_v1.1.0_RC1.137-g90d4b327-20231126.tar.gz编译
 * 云盘里面的是一定可以编译bmodel正确的，相当于是release版本，因此相较github上面的少了一些东西，但是不影响正常编译bmodel，而github因为持续在更新，因此可能会导致编译错误
