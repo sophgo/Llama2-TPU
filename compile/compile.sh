@@ -142,7 +142,7 @@ model_transform.py \
 model_deploy.py \
     --mlir block_$i.mlir \
     $quantize_args \
-    --q_group_size_args \
+    $q_group_size_args \
     --chip bm1684x \
     --quant_output \
     --quant_output_list 2,3 \
@@ -157,8 +157,8 @@ model_transform.py \
 model_deploy.py \
     --mlir block_cache_$i.mlir \
     $quantize_args \
+    $q_group_size_args \
     --chip bm1684x \
-    --q_group_size_args \
     --quant_input \
     --quant_output \
     --quant_input_list 4,5 \
