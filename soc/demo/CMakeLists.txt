@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 2.8)
 project(llama2)
 
-set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
-set(CMAKE_ASM_COMPILER aarch64-linux-gnu-gcc)
-set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
-set(LIBSOPHON /workspace/soc0701)
+# 交叉编译使用
+# set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
+# set(CMAKE_ASM_COMPILER aarch64-linux-gnu-gcc)
+# set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
+# set(LIBSOPHON /workspace/soc0701)
 
 include_directories(${LIBSOPHON}/include)
 include_directories(${PROJECT_SOURCE_DIR}/include)

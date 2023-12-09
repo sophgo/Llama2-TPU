@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(llama2)
 
-set(LIBSOPHON /opt/sophon/libsophon-current)
+set(LIBSOPHON /workspace/libsophon)
 
 include_directories(${LIBSOPHON}/include)
 include_directories(${PROJECT_SOURCE_DIR}/include)

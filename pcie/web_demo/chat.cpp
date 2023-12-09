@@ -22,7 +22,7 @@ static const int NUM_LAYERS = 32;
 static const int MAX_LEN = 512;
 static const float ATTENTION_MASK = -1000.;
 
-static const std::string TOKENIZER_MODEL = "tokenizer.model";
+static const std::string TOKENIZER_MODEL = "../../bmodel/tokenizer.model";
 
 // #define EXPORT_RESULTS
 #ifdef EXPORT_RESULTS

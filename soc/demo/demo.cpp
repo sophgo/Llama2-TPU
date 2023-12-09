@@ -22,7 +22,7 @@ static const int NUM_LAYERS = 32;
 static const int MAX_LEN = 512;
 static const float ATTENTION_MASK = -1000.;
 
-static const std::string TOKENIZER_MODEL = "tokenizer.model";
+static const std::string TOKENIZER_MODEL = "../../bmodel/tokenizer.model";
 
 // #define EXPORT_RESULTS
 #ifdef EXPORT_RESULTS
@@ -100,7 +100,7 @@ void LLama2::init(const std::vector<int> &devices, std::string model) {
     std::cout << d << " ";
   }
   std::cout << "] loading ....\n";
-  // int device_num = devices.size();
+  int device_num = devices.size();
   for (auto d : devices) {
     bm_handle_t h;
     bm_status_t status = bm_dev_request(&h, d);
@@ -109,7 +109,7 @@ void LLama2::init(const std::vector<int> &devices, std::string model) {
   }
   bm_handle = handles[0];
   // create bmruntime
-  p_bmrt = bmrt_create(bm_handle);
+  p_bmrt = bmrt_create_ex(handles.data(), device_num);
   assert(NULL != p_bmrt);
 
   // load bmodel by file
@@ -342,8 +342,20 @@ void LLama2::chat() {
     std::cout << "\nQuestion: ";
     std::string input_str;
     std::getline(std::cin, input_str);
+    std::string sys_config = R"(
+            [INST] <<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
+
+            If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n)";
     if (input_str == "exit") {
       break;
+    }
+
+    input_str = sys_config + input_str + " [/INST] ";
+    if(history == "") {
+      input_str = sys_config + "\nQuestion:\n" + input_str + "\nAnswer\n:";
+    }
+    else {
+      input_str = "\nQuestion:\n" + input_str + "\nAnswer:\n";
     }
     std::cout << "\nAnswer: " << std::flush;
     answer(input_str);
@@ -355,7 +367,7 @@ void LLama2::answer(const std::string &input_str) {
   // history += ("[Round " + std::to_string(round + 1) + "]\n\n问：" + input_str +
   //             "\n\n答：");
   history = input_str;
-  int tok_num = 1;
+  int tok_num = 0;
   std::vector<int> tokens;
   sentencepiece.Encode(history, &tokens);
   tokens.insert(tokens.begin(), 1);
@@ -377,9 +389,10 @@ void LLama2::answer(const std::string &input_str) {
     answer(input_str);
     return;
   }
-  auto st = std::chrono::system_clock::now();
+  auto st_ftl = std::chrono::system_clock::now();
   int pre_token = 0;
   int token = forward_first(tokens);
+  auto et_ftl = std::chrono::system_clock::now();
   while (token != EOS && token_length < MAX_LEN) {
     std::string pre_word;
     std::string word;
@@ -396,10 +409,13 @@ void LLama2::answer(const std::string &input_str) {
     tok_num++;
     token = forward_next();
   }
-  auto et = std::chrono::system_clock::now();
-  auto duration =
-      std::chrono::duration_cast<std::chrono::microseconds>(et - st);
-  printf("\nspeed: %f token/s\n", tok_num / (duration.count() * 1e-6));
+  auto et_fps = std::chrono::system_clock::now();
+  auto duration_ftl =
+    std::chrono::duration_cast<std::chrono::microseconds>(et_ftl - st_ftl);
+  printf("\nlatency: %f s\n", (duration_ftl.count() * 1e-6));
+  auto duration_tps =
+      std::chrono::duration_cast<std::chrono::microseconds>(et_fps - et_ftl);
+  printf("speed: %f token/s", tok_num / (duration_tps.count() * 1e-6));
   if (token_length >= MAX_LEN) {
     round = 0;
     history = history.substr(history.size() / 2);

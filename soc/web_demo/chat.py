@@ -75,11 +75,12 @@ class TPUChatglm:
     def stream_predict(self, query, history):
         history.append((query, ''))
 
-        prompt = ''
+        prompt = '[INST] <<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don\'t know the answer to a question, please don\'t share false information.\n<</SYS>>\n\n'
+        prompt += query + " [/INST] "
         # for i, (old_query, response) in enumerate(history):
         #     prompt += "[Round {}]\n\n问：{}\n\n答：{}\n\n".format(i + 1, old_query, response)
         # prompt += "[Round {}]\n\n问：{}\n\n答：".format(len(history) + 1, query)
-        prompt = query
+        # prompt = query
         
         res = ''
         first_token = self.predict_first_token(prompt)
