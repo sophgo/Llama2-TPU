@@ -1,7 +1,11 @@
 # coding=utf-8
 
 import ctypes
+import os
 
+def check_file_exists(file_path):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
 
 class TokenWord(ctypes.Structure):
     _fields_ = [
@@ -9,13 +13,18 @@ class TokenWord(ctypes.Structure):
         ("word", ctypes.c_char * 2048)  # 假设最大长度为 100，你可以根据实际情况调整
     ]
 
+class TPULlama2:
+    def __init__(self, 
+                device_id = 0,
+                bmodel_path = "../compile/llama2-7b.bmodel",
+                token_path = "../src/tokenizer.model",
+                lib_path = "./build/libtpuchat.so"):
 
-class TPUChatglm:
-    def __init__(self):
-        self.lib = ctypes.cdll.LoadLibrary('./build/libtpuchat.so')
-        device_id = 0
-        bmodel_path = "./llama2-7b_int4.bmodel"
-        token_path = "../../bmodel/tokenizer.model"
+        check_file_exists(bmodel_path)
+        check_file_exists(token_path)
+        check_file_exists(lib_path) 
+        
+        self.lib = ctypes.cdll.LoadLibrary(lib_path)
         self.device_id = device_id
         self.bmodel_path = bmodel_path
         self.token_path = token_path

@@ -22,7 +22,7 @@ static const int NUM_LAYERS = 32;
 static const int MAX_LEN = 512;
 static const float ATTENTION_MASK = -1000.;
 
-static const std::string TOKENIZER_MODEL = "tokenizer.model";
+static const std::string TOKENIZER_MODEL = "../src/tokenizer.model";
 
 // #define EXPORT_RESULTS
 #ifdef EXPORT_RESULTS
@@ -42,18 +42,11 @@ static void save_array(std::string filename) {
 }
 #endif
 
-class Llama2 {
+class LLama2 {
 public:
-  void init(int devid, const std::string model, const std::string tokenizer_path);
+  void init(const std::vector<int> &devid, std::string model);
   void chat();
   void deinit();
-  std::string name;
-  std::string history = "";
-  int round = 0;
-  int token_length;
-  int EOS;
-  std::string predict_next_token();
-  std::string predict_first_token(const std::string &input_str);
 
 private:
   void answer(const std::string &input_str);
@@ -61,7 +54,7 @@ private:
   int forward_first(std::vector<int> &tokens);
   int forward_next();
   void step_back(const bm_tensor_t &kv, const bm_tensor_t &kv_cache);
-  void load_sentencepiece(const std::string &tokenizer_path);
+  void load_sentencepiece();
 
 private:
   std::vector<bm_handle_t> handles;
@@ -82,11 +75,15 @@ private:
   std::string name_lm;
   std::string name_blocks[NUM_LAYERS];
   std::string name_blocks_cache[NUM_LAYERS];
+  std::string history = "";
+  int round = 0;
+  int token_length;
+  int EOS;
 };
 
-void Llama2::load_sentencepiece(const std::string &model) {
-  printf("Load %s ... ", model.c_str());
-  auto status = sentencepiece.Load(model);
+void LLama2::load_sentencepiece() {
+  printf("Load %s ... ", TOKENIZER_MODEL.c_str());
+  auto status = sentencepiece.Load(TOKENIZER_MODEL);
   if (!status.ok()) {
     std::cout << status.ToString() << std::endl;
     exit(-1);
@@ -95,14 +92,30 @@ void Llama2::load_sentencepiece(const std::string &model) {
   printf("Done!\n");
 }
 
-void Llama2::init(int devid, const std::string model, const std::string tokenizer_path) {
-  load_sentencepiece(tokenizer_path);
+void LLama2::init(const std::vector<int> &devices, std::string model) {
+  load_sentencepiece();
   // request bm_handle
-  bm_status_t status = bm_dev_request(&bm_handle, devid);
-  assert(BM_SUCCESS == status);
-
+  std::cout << "Device [ ";
+  for (auto d : devices) {
+    std::cout << d << " ";
+  }
+  std::cout << "] loading ....\n";
+  for (auto d : devices) {
+    bm_handle_t h;
+    bm_status_t status = bm_dev_request(&h, d);
+    assert(BM_SUCCESS == status);
+    handles.push_back(h);
+  }
+  bm_handle = handles[0];
   // create bmruntime
-  p_bmrt = bmrt_create(bm_handle);
+#ifdef SOC_TARGET
+  p_bmrt = bmrt_create(handles[0]);
+#else
+  int device_num = devices.size();
+  // Is this two lines the same?
+  // p_bmrt = bmrt_create_ex(handles.data(), handles.size());
+  p_bmrt = bmrt_create_ex(handles.data(), device_num);
+#endif
   assert(NULL != p_bmrt);
 
   // load bmodel by file
@@ -182,7 +195,7 @@ void Llama2::init(int devid, const std::string model, const std::string tokenize
   assert(true == ret);
 }
 
-void Llama2::deinit() {
+void LLama2::deinit() {
   bm_free_device(bm_handle, inputs_embed_512.device_mem);
   bm_free_device(bm_handle, outputs_embed_512.device_mem);
   bm_free_device(bm_handle, inputs_lm.device_mem);
@@ -205,7 +218,7 @@ void Llama2::deinit() {
   }
 }
 
-void Llama2::step_back(const bm_tensor_t &kv, const bm_tensor_t &kv_cache) {
+void LLama2::step_back(const bm_tensor_t &kv, const bm_tensor_t &kv_cache) {
   if (token_length >= MAX_LEN) {
     return;
   }
@@ -231,7 +244,7 @@ void Llama2::step_back(const bm_tensor_t &kv, const bm_tensor_t &kv_cache) {
   delete[] dst;
 }
 
-int Llama2::forward_first(std::vector<int> &tokens) {
+int LLama2::forward_first(std::vector<int> &tokens) {
   int input_ids[MAX_LEN] = {0}; // start token
   int position_id[MAX_LEN] = {0};
   float attention_mask[MAX_LEN * MAX_LEN] = {0};
@@ -285,7 +298,7 @@ int Llama2::forward_first(std::vector<int> &tokens) {
   return token;
 }
 
-int Llama2::forward_next() {
+int LLama2::forward_next() {
   float attention_mask[MAX_LEN + 1] = {0};
   for (int i = token_length - 1; i < MAX_LEN; i++) {
     attention_mask[i] = ATTENTION_MASK;
@@ -330,117 +343,156 @@ int Llama2::forward_next() {
   return token;
 }
 
+void LLama2::chat() {
+  while (true) {
+    std::cout << "\nQuestion: ";
+    std::string input_str;
+    std::getline(std::cin, input_str);
+    std::string sys_config = R"(
+            [INST] <<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
 
-std::string Llama2::predict_first_token(const std::string &input_str) {
+            If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n)";
+    if (input_str == "exit") {
+      break;
+    }
+
+    input_str = sys_config + input_str + " [/INST] ";
+    if(history == "") {
+      input_str = sys_config + "\nQuestion:\n" + input_str + "\nAnswer\n:";
+    }
+    else {
+      input_str = "\nQuestion:\n" + input_str + "\nAnswer:\n";
+    }
+    std::cout << "\nAnswer: " << std::flush;
+    answer(input_str);
+    std::cout << std::endl;
+  }
+}
+
+void LLama2::answer(const std::string &input_str) {
+  // history += ("[Round " + std::to_string(round + 1) + "]\n\n问：" + input_str +
+  //             "\n\n答：");
   history = input_str;
-  //int tok_num = 1;
+  int tok_num = 0;
   std::vector<int> tokens;
   sentencepiece.Encode(history, &tokens);
   tokens.insert(tokens.begin(), 1);
   if (tokens.empty()) {
+    printf("Sorry: your question is too wierd!!\n");
+    history = "";
     round = 0;
-    history = "Sorry: your question is too wierd!!\n";
-    return history;
+    return;
   }
   // make sure token not too large
   if (tokens.size() > MAX_LEN - 10) {
     // reset
     if (round == 0) {
-      history = "Error: your question is too large!\n";
-      return history;
+      printf("Error: your question is too large!\n");
+      return;
     }
     round = 0;
     history = "";
-    return predict_first_token(input_str);
+    answer(input_str);
+    return;
   }
-  int token = forward_first(tokens);
+  auto st_ftl = std::chrono::system_clock::now();
   int pre_token = 0;
-  std::string pre_word;
-  std::string word;
-  std::vector<int> pre_ids = {pre_token};
-  std::vector<int> ids = {pre_token,token};
-  sentencepiece.Decode(pre_ids, &pre_word);
-  sentencepiece.Decode(ids, &word);
-  std::string diff = word.substr(pre_word.size());
-#ifdef PRINT
-  printf("token %d",token);
-  printf("diff %s",diff.c_str());
-#endif
-  history += diff;
-  if (token_length < MAX_LEN) {
-    token_length++;
+  int token = forward_first(tokens);
+  auto et_ftl = std::chrono::system_clock::now();
+  while (token != EOS && token_length < MAX_LEN) {
+    std::string pre_word;
+    std::string word;
+    std::vector<int> pre_ids = {pre_token};
+    std::vector<int> ids = {pre_token, token};
+    sentencepiece.Decode(pre_ids, &pre_word);
+    sentencepiece.Decode(ids, &word);
+    std::string diff = word.substr(pre_word.size());
+    history += diff;
+    std::cout << diff << std::flush;
+    if (token_length < MAX_LEN) {
+      token_length++;
+    }
+    tok_num++;
+    token = forward_next();
   }
-  return diff;
-}
-
-std::string Llama2::predict_next_token() {
-  int pre_token;
-  pre_token = 0;
-  int token = forward_next();
-  if(token == EOS){
+  auto et_fps = std::chrono::system_clock::now();
+  auto duration_ftl =
+    std::chrono::duration_cast<std::chrono::microseconds>(et_ftl - st_ftl);
+  printf("\nlatency: %f s\n", (duration_ftl.count() * 1e-6));
+  auto duration_tps =
+      std::chrono::duration_cast<std::chrono::microseconds>(et_fps - et_ftl);
+  printf("speed: %f token/s", tok_num / (duration_tps.count() * 1e-6));
+  if (token_length >= MAX_LEN) {
     round = 0;
-    history = history.substr(history.size()/2);
-    return "_GETEOS_";
+    history = history.substr(history.size() / 2);
+  } else {
+    history += "\n\n";
+    round++;
   }
-  std::string pre_word;
-  std::string word;
-  std::vector<int> pre_ids = {pre_token};
-  std::vector<int> ids = {pre_token, token};
-  sentencepiece.Decode(pre_ids, &pre_word);
-  sentencepiece.Decode(ids, &word);
-  std::string diff = word.substr(pre_word.size());
-#ifdef PRINT
-  printf("token %d",token);
-  printf("diff %s",diff.c_str());
-#endif
-  history += diff;
-  if (token_length < MAX_LEN) {
-    token_length++;
-  }else{
-    round = 0;
-    return "_GETMAX_";
+}
+
+static void split(const std::string &s, const std::string &delim,
+                  std::vector<std::string> &ret) {
+  size_t last = 0;
+  size_t index = s.find_first_of(delim, last);
+  while (index != std::string::npos) {
+    ret.push_back(s.substr(last, index - last));
+    last = index + 1;
+    index = s.find_first_of(delim, last);
   }
-  return diff;
+  if (last < s.length()) {
+    ret.push_back(s.substr(last));
+  }
 }
 
-
-extern "C" {
-
-
-Llama2 *Llama2_with_devid_and_model(int devid, const char *bmodel_path, const char *tokenizer_path) {
-  Llama2 *chat = new Llama2();
-  chat->init(devid, bmodel_path, tokenizer_path);
-  return chat;
+static std::vector<int> parseCascadeDevices(const std::string &str) {
+  std::vector<int> devices;
+  std::vector<std::string> sub_str;
+  split(str, ",", sub_str);
+  for (auto &s : sub_str) {
+    devices.push_back(std::atoi(s.c_str()));
+  }
+  return devices;
 }
 
-void Llama2_delete(Llama2 *chat) { delete chat; }
+void processArguments(int argc, char *argv[], std::string &llama_model,
+                      std::vector<int> &devices) {
+  struct option longOptions[] = {{"model", required_argument, nullptr, 'm'},
+                                 {"dev_id", required_argument, nullptr, 'd'},
+                                 {nullptr, 0, nullptr, 0}};
 
-void Llama2_deinit(Llama2 *chat) { 
-  chat->deinit();
+  int optionIndex = 0;
+  int option;
+
+  while ((option = getopt_long(argc, argv, "m:d:", longOptions,
+                               &optionIndex)) != -1) {
+    switch (option) {
+    case 'm':
+      llama_model = optarg;
+      break;
+    case 'd':
+      devices = parseCascadeDevices(optarg);
+      break;
+    case '?':
+      exit(EXIT_FAILURE);
+    default:
+      exit(EXIT_FAILURE);
+    }
+  }
 }
 
-const char *get_history(Llama2 *chat) {
-  std::string str = chat->history;
-  return strdup(str.c_str());
-}
+int main(int argc, char **argv) {
+  // set your bmodel path here
+  printf("Demo for LLama2-7B in BM1684X\n");
+  std::string llama_model = "llama2-7b_int4_1dev.bmodel";
+  std::vector<int> devices = {0};
+  processArguments(argc, argv, llama_model, devices);
 
-const char *set_history(Llama2 *chat, const char *history) {
-  chat->history = history;
-  return strdup(history);
-}
-
-const char *Llama2_predict_first_token(Llama2 *chat, const char *input_str) {
-  std::string str = chat->predict_first_token(input_str);
-  return strdup(str.c_str());
-}
-
-const char *Llama2_predict_next_token(Llama2 *chat) {
-  std::string str = chat->predict_next_token();
-  return strdup(str.c_str());
-}
-
-const int get_eos(Llama2 *chat){
-  const int res = chat->EOS;
-  return res;
-}
+  LLama2 llama;
+  printf("Init Environment ...\n");
+  llama.init(devices, llama_model);
+  printf("==========================\n");
+  llama.chat();
+  llama.deinit();
+  return 0;
 }

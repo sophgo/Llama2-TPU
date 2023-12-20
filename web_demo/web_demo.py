@@ -1,8 +1,21 @@
 import time
 import gradio as gr
 import mdtex2html
-from chat import TPUChatglm
+from chat import TPULlama2
+import argparse
 
+parser = argparse.ArgumentParser(description='Web_Demo for Llama2.')
+parser.add_argument('--dev', type=int, default=0, help='Device ID to use.')
+parser.add_argument('--bmodel_path', type=str, default="../compile/llama2-7b.bmodel", help='Path to the bmodel file.')
+parser.add_argument('--token_path', type=str, default="../src/tokenizer.model", help='ath to the tokenizer file.')
+parser.add_argument('--lib_path', type=str, default="./build/libtpuchat.so", help='Path to the lib file.')
+
+args = parser.parse_args()
+
+llama2 = TPULlama2(device_id = args.dev,
+                 bmodel_path = args.bmodel_path,
+                 token_path = args.token_path,
+                 lib_path = args.lib_path)
 
 def postprocess(self, y):
     if y is None:
@@ -16,8 +29,6 @@ def postprocess(self, y):
 
 
 gr.Chatbot.postprocess = postprocess
-
-glm = TPUChatglm()
 
 def parse_text(text):
     """copy from https://github.com/GaiZhenbiao/ChuanhuChatGPT/"""
@@ -67,7 +78,7 @@ def gen(input, history):
 def predict(input, chatbot, max_length, top_p, temperature, history):
 
     chatbot.append((parse_text(input), ""))
-    for response, history in glm.stream_predict(input, history):
+    for response, history in llama2.stream_predict(input, history):
         chatbot[-1] = (parse_text(input), parse_text(response))
         yield chatbot, history
 

@@ -6,11 +6,18 @@ folder="tmp"
 num_device=1
 mode_args=""
 device_args=""
-q_group_size_args=""
 quantize_args="--quantize F16"
 name=""
 num_layers=
 out_model=$name.bmodel
+
+if [ -z "$name" ]; then
+    name="llama2-7b"
+    echo "Compile Llama2-7B"
+else
+    name="llama2-13b"
+    echo "Compile Llama2-13B"
+fi
 
 while [[ $# -gt 0 ]]; do
     key="$1"
@@ -43,8 +50,7 @@ if [ x$mode == x"int8" ] || [ x$mode == x"int4" ]; then
     if [ x$mode == x"int8" ]; then
         quantize_args="--quantize W8F16"
     else
-        quantize_args="--quantize W4F16"
-        q_group_size_args="--q_group_size 64"
+        quantize_args="--quantize W4BF16 --q_group_size 64"
     fi
     out_model=$name'_'$mode'.bmodel'
 fi
@@ -60,6 +66,8 @@ fi
 if [ x$num_device != x1 ]; then
     device_args="--num_device $num_device"
     out_model=$name'_'$mode'_'$num_device'dev.bmodel'
+else
+    out_model=$name'_'$mode'_1dev.bmodel'
 fi
 
 outdir=${folder}/embedding
@@ -113,7 +121,7 @@ model_transform.py \
 
 model_deploy.py \
     --mlir lm_head.mlir \
-    --quantize F16 \
+    $quantize_args \
     --chip bm1684x \
     $device_args \
     --model lm_head.bmodel
@@ -142,7 +150,6 @@ model_transform.py \
 model_deploy.py \
     --mlir block_$i.mlir \
     $quantize_args \
-    $q_group_size_args \
     --chip bm1684x \
     --quant_output \
     --quant_output_list 2,3 \
@@ -157,7 +164,6 @@ model_transform.py \
 model_deploy.py \
     --mlir block_cache_$i.mlir \
     $quantize_args \
-    $q_group_size_args \
     --chip bm1684x \
     --quant_input \
     --quant_output \

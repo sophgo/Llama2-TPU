@@ -17,18 +17,24 @@ import random
 import sys
 from transformers import LlamaTokenizer
 from transformers import LlamaForCausalLM, LlamaConfig
-import pdb
 import numpy as np
+import argparse
 
+parser = argparse.ArgumentParser(description='export Llama2 onnx.')
+parser.add_argument('--model_path', type=str, default="../../torch2onnx/llama-2-7b-chat-hf", help='path to the torch model.')
+parser.add_argument('--max_length', type=int, default=512, help="max sequence length")
+
+args = parser.parse_args()
+
+model_path = args.model_path
+MAX_LEN = args.max_length
 folder = "./tmp"
-model_path = "llama-2-13b-chat-hf"
 
 origin_model = LlamaForCausalLM.from_pretrained(model_path)
 origin_model.eval()
 transformer = origin_model.model
 config = origin_model.config
 
-MAX_LEN = 512
 for param in origin_model.parameters():
     param.requires_grad = False
 
