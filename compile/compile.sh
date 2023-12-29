@@ -86,10 +86,11 @@ model_deploy.py \
     --mlir embedding_$seqlen.mlir \
     --quantize F16 \
     --chip bm1684x \
+    $device_args \
     --model embedding_${seqlen}_f16.bmodel
 
 model_transform.py \
-    --model_name embedding \
+    --model_name embedding_cache \
     --model_def ../embedding.onnx \
     --input_shapes [[1]] \
     --mlir embedding_1.mlir
@@ -99,6 +100,7 @@ model_deploy.py \
     --mlir embedding_1.mlir \
     --quantize F16 \
     --chip bm1684x \
+    $device_args \
     --model embedding_1_f16.bmodel
 
 rm *.npz
@@ -123,7 +125,6 @@ model_deploy.py \
     --mlir lm_head.mlir \
     $quantize_args \
     --chip bm1684x \
-    $device_args \
     --model lm_head.bmodel
 
 rm *.npz
