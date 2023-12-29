@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(chatglm)
+project(llama2)
 
 if (NOT DEFINED TARGET_ARCH)
     set(TARGET_ARCH pcie)
@@ -24,8 +24,17 @@ elseif (${TARGET_ARCH} STREQUAL "soc")
 	message("SoC mode, starting......")
 endif()
 
-add_definitions(-DDEBUG --std=c++17 -fPIC -Wall -Werror)
-# set(CMAKE_BUILD_TYPE "Debug")
+set(num_device "single" CACHE STRING "Number of devices") 
+if(${num_device} STREQUAL "single")
+    set(SOURCE_FILE demo.cpp)
+    message("single deivce mode, starting......")
+elseif(${num_device} STREQUAL "multi")
+    set(SOURCE_FILE demo_multidevice.cpp)
+    message("multi device mode, starting......")
+endif()
 
-add_executable(llama2 demo.cpp)
+add_definitions(-DDEBUG --std=c++17 -fPIC -Wall -Werror)
+set(CMAKE_BUILD_TYPE "Debug")
+
+add_executable(llama2 ${SOURCE_FILE})
 target_link_libraries(llama2 bmlib bmrt sentencepiece)

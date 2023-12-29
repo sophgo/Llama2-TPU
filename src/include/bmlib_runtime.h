@@ -1628,6 +1628,7 @@ typedef struct bm_profile {
   unsigned long cdma_out_time;
   unsigned long cdma_out_counter;
   unsigned long tpu_process_time;
+  unsigned long tpu1_process_time;
   unsigned long sent_api_counter;
   unsigned long completed_api_counter;
 #else
@@ -1636,6 +1637,7 @@ typedef struct bm_profile {
   unsigned long long cdma_out_time;
   unsigned long long cdma_out_counter;
   unsigned long long tpu_process_time;
+  unsigned long long tpu1_process_time;
   unsigned long long sent_api_counter;
   unsigned long long completed_api_counter;
 #endif

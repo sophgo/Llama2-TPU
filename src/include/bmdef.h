@@ -98,7 +98,9 @@ typedef struct bm_net_info_s {
   size_t* max_input_bytes;       /* max_input_bytes[0]/ [1] / ... / [input_num-1] */
   size_t* max_output_bytes;      /* max_output_bytes[0] / [1] / ... / [output_num-1] */
   int* input_zero_point;         /* input_zero_point[0] / [1] / .../ [input_num-1] */
-  int* output_zero_point;        /* output_zero_point[0] / [1] / .../ [input_num-1] */
+  int* output_zero_point;        /* output_zero_point[0] / [1] / .../ [output_num-1] */
+  int *input_loc_devices;         /* input_loc_device[0] / [1] / .../ [input_num-1] */
+  int *output_loc_devices;        /* output_loc_device[0] / [1] / .../ [output_num-1] */
 } bm_net_info_t;
 
 typedef struct api_info_s {
