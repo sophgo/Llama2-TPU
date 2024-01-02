@@ -18,7 +18,7 @@
 #include "bmruntime_interface.h"
 #include <getopt.h>
 
-static const int NUM_LAYERS = 1;
+static const int NUM_LAYERS = 32;
 static const int MAX_LEN = 512;
 static const float ATTENTION_MASK = -10000.;
 
@@ -459,8 +459,20 @@ void LLama2::chat() {
     std::cout << "\nQuestion: ";
     std::string input_str;
     std::getline(std::cin, input_str);
+    std::string sys_config = R"(
+            [INST] <<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
+
+            If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n)";
     if (input_str == "exit") {
       break;
+    }
+
+    input_str = sys_config + input_str + " [/INST] ";
+    if(history == "") {
+      input_str = sys_config + "\nQuestion:\n" + input_str + "\nAnswer\n:";
+    }
+    else {
+      input_str = "\nQuestion:\n" + input_str + "\nAnswer:\n";
     }
     std::cout << "\nAnswer: " << std::flush;
     answer(input_str);
