@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.8)
 project(llama2)
 
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "") 
+
 if (NOT DEFINED TARGET_ARCH)
     set(TARGET_ARCH pcie)
 endif()
@@ -35,8 +38,8 @@ elseif(${num_device} STREQUAL "multi")
     message("multi device mode, starting......")
 endif()
 
-add_definitions(-DDEBUG --std=c++17 -fPIC -Wall -Werror)
-set(CMAKE_BUILD_TYPE "Debug")
+add_definitions(-DNDEBUG --std=c++17 -fPIC -Wall)
+set(CMAKE_BUILD_TYPE "Release")
 
 add_executable(${EXECUTABLE_NAME} ${SOURCE_FILE})
 target_link_libraries(${EXECUTABLE_NAME} bmlib bmrt sentencepiece)
