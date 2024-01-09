@@ -162,12 +162,12 @@ make -j
 编译生成llama2可执行程序，将`llama2_single`或`llama2_multi`(多芯)放到/Llama2-TPU/demo目录下，同时按照下列方式指定芯片编号（默认只使用0号芯片）和bmodel路径。
 运行`llama2_single`，默认单芯运行`llama2-7b_int8_1dev.bmodel`:
 ```shell
-./llama2_single --model your_llama2_bmodel_path --dev dev_id
+./llama2_single --model=your_llama2_bmodel_path --dev=dev_id
 ```
 
 如果是双芯分布式推理，使用如下命令(比如指定在2号和3号芯片上运行, 用`source /etc/profiel`后使用`bm-smi`查询芯片id号,查看需要在之前安装过libsophon驱动)：
 ```shell
-./llama2_multi --model your_llama2_bmodel_path --devid 2,3
+./llama2_multi --model=your_llama2_bmodel_path --devid=2,3
 ```
 * PS：请勿将编译好的单芯模型用多颗芯片进行推理。可以在编译好的bmodel名称中了解它是否是多芯模型，如`llama2-7b_int8_2dev.bmodel`是可以跑双芯的模型。双芯模型可以用单芯运行。
 
