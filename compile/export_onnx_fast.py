@@ -190,7 +190,7 @@ def test_net_with_mask():
     attention_mask = attention_mask.view(1, 1, MAX_LEN, MAX_LEN)
     k_cache = []
     v_cache = []
-    for i in range(5):
+    for i in range(num_layers):
         out, k, v = blocks[i](out, position_ids, attention_mask)
         k[:,MAX_LEN - token_len:] = k[:,:token_len]
         v[:,MAX_LEN - token_len:] = v[:,:token_len]
