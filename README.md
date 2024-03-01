@@ -1,3 +1,9 @@
+## [DEPRECATED] 
+
+**This project is deprecated.** Use  [LLM-TPU](https://github.com/sophgo/LLM-TPU) instead.  Thank you. 
+
+
+
 ![image](./assets/sophgo_chip.png)
 
 # Llama2-TPU
